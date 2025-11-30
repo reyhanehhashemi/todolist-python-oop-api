@@ -90,3 +90,36 @@ class InvalidStatusError(ToDoListException):
             f"Invalid status '{provided_status}'. "
             f"Valid statuses are: {', '.join(valid_statuses)}"
         )
+"""
+Custom exceptions for the todolist application.
+"""
+
+
+class TodoListException(Exception):
+    """Base exception for todolist application."""
+    pass
+
+
+class ValidationError(TodoListException):
+    """Raised when validation fails."""
+    pass
+
+
+class ProjectNotFoundError(TodoListException):
+    """Raised when a project is not found."""
+    pass
+
+
+class MaxProjectsReachedError(TodoListException):
+    """Raised when maximum number of projects is reached."""
+    pass
+
+
+class TaskNotFoundError(TodoListException):
+    """Raised when a task is not found."""
+    pass
+
+
+class MaxTasksReachedError(TodoListException):
+    """Raised when maximum number of tasks is reached."""
+    pass

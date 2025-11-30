@@ -1,18 +1,23 @@
 """
-Dependency injection for FastAPI endpoints.
+Dependency injection for FastAPI routes.
 """
+from typing import Generator
+from fastapi import Depends
 from sqlalchemy.orm import Session
-from todolist.database.connection import SessionLocal
+
+from todolist.db.database import SessionLocal
 from todolist.services.project_service import ProjectService
 from todolist.services.task_service import TaskService
 from todolist.repositories.project_repository import ProjectRepository
 from todolist.repositories.task_repository import TaskRepository
 
 
-def get_db() -> Session:
+def get_db() -> Generator[Session, None, None]:
     """
-    Database session dependency.
-    Yields a database session and ensures it's closed after use.
+    Get database session.
+
+    Yields:
+        Session: SQLAlchemy session
     """
     db = SessionLocal()
     try:
@@ -21,17 +26,29 @@ def get_db() -> Session:
         db.close()
 
 
-def get_project_service(db: Session) -> ProjectService:
+def get_project_service(db: Session = Depends(get_db)):
     """
-    Get ProjectService instance with repository.
+    Get project service instance.
+
+    Args:
+        db: Database session
+
+    Returns:
+        ProjectService: Project service instance
     """
-    repository = ProjectRepository(db)
-    return ProjectService(repository)
+    project_repository = ProjectRepository(db)
+    return ProjectService(project_repository)
 
 
-def get_task_service(db: Session) -> TaskService:
+def get_task_service(db: Session = Depends(get_db)):
     """
-    Get TaskService instance with repository.
+    Get task service instance.
+
+    Args:
+        db: Database session
+
+    Returns:
+        TaskService: Task service instance
     """
-    repository = TaskRepository(db)
-    return TaskService(repository)
+    task_repository = TaskRepository(db)
+    return TaskService(task_repository)
