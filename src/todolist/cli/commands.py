@@ -1,6 +1,10 @@
 """
 CLI command handlers for the ToDo List application.
 
+.. deprecated:: 1.0.0
+    The CLI interface is deprecated and will be removed in v2.0.0.
+    Please use the Web API instead. See http://localhost:8000/docs
+
 This module provides interactive command-line interface for
 managing projects and tasks.
 """
@@ -33,6 +37,26 @@ class CLI:
         self._project_service = project_service
         self._task_service = task_service
 
+    def _show_deprecation_warning(self) -> None:
+        """Display deprecation warning for CLI."""
+        print("\n" + "⚠️ " * 25)
+        print("║" + " " * 73 + "║")
+        print("║" + " " * 20 + "DEPRECATION WARNING" + " " * 34 + "║")
+        print("║" + " " * 73 + "║")
+        print("║  This CLI interface is deprecated and will be removed in v2.0.0" + " " * 8 + "║")
+        print("║" + " " * 73 + "║")
+        print("║  Please migrate to the new Web API:" + " " * 36 + "║")
+        print("║    • API Documentation: http://localhost:8000/docs" + " " * 22 + "║")
+        print("║    • Start API: uvicorn todolist.api.main:app --reload" + " " * 18 + "║")
+        print("║" + " " * 73 + "║")
+        print("║  Benefits of Web API:" + " " * 51 + "║")
+        print("║    ✓ RESTful standard endpoints" + " " * 42 + "║")
+        print("║    ✓ Auto-generated documentation (Swagger/OpenAPI)" + " " * 21 + "║")
+        print("║    ✓ Better integration with other applications" + " " * 25 + "║")
+        print("║    ✓ Modern async/await support" + " " * 41 + "║")
+        print("║" + " " * 73 + "║")
+        print("⚠️ " * 25 + "\n")
+
     def display_menu(self) -> None:
         """Display main menu."""
         print("\n" + "=" * 50)
@@ -59,6 +83,9 @@ class CLI:
     def run(self) -> None:
         """Run the CLI application."""
         print("\n🎯 Welcome to ToDo List Manager!")
+
+        # Show deprecation warning
+        self._show_deprecation_warning()
 
         while True:
             try:
@@ -435,5 +462,3 @@ class CLI:
         for status in TaskStatus.values():
             count = len(self._task_service.get_tasks_by_status(status))
             print(f"   {status}: {count}")
-
-
