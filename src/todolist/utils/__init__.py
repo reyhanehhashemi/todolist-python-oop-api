@@ -1,30 +1,53 @@
-"""Utils package."""
+"""
+Utils package initialization.
+
+This package contains utility modules for:
+- Custom exceptions
+- ID generation
+- Validators
+"""
 
 from .exceptions import (
+    # Base exceptions
     ToDoListException,
     ValidationError,
-    ResourceNotFoundError,
-    LimitExceededError,
-    DuplicateResourceError,
-    InvalidStatusError,
+
+    # Resource not found exceptions
+    ResourceNotFoundError,  # ✅ اضافه شد
+    ProjectNotFoundError,
+    TaskNotFoundError,
+
+    # Duplicate exceptions
+    DuplicateProjectTitleError,
+    DuplicateTaskTitleError,
+
+    # Limit exceptions
+    LimitExceededError,  # ✅ اضافه شد
+    MaxProjectsReachedError,
+    MaxTasksReachedError,
+
+    # Status exceptions
+    InvalidTaskStatusError,
 )
-from .validators import (
-    validate_non_empty_string,
-    validate_positive_integer,
-    validate_status,
-)
-from .id_generator import id_generator, IDGenerator
+
+from .id_generator import IDGenerator
+from .validators import Validators
 
 __all__ = [
+    # Exceptions
     "ToDoListException",
     "ValidationError",
-    "ResourceNotFoundError",
-    "LimitExceededError",
-    "DuplicateResourceError",
-    "InvalidStatusError",
-    "validate_non_empty_string",
-    "validate_positive_integer",
-    "validate_status",
-    "id_generator",
+    "ResourceNotFoundError",  # ✅ اضافه شد
+    "ProjectNotFoundError",
+    "TaskNotFoundError",
+    "DuplicateProjectTitleError",
+    "DuplicateTaskTitleError",
+    "LimitExceededError",  # ✅ اضافه شد
+    "MaxProjectsReachedError",
+    "MaxTasksReachedError",
+    "InvalidTaskStatusError",
+
+    # Utils
     "IDGenerator",
+    "Validators",
 ]

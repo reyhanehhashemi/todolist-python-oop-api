@@ -1,125 +1,142 @@
 """
 Custom exceptions for the ToDo List application.
 
-This module defines domain-specific exceptions to provide clear
-error handling and meaningful error messages.
+This module defines a hierarchy of exceptions for handling
+various error conditions in the application.
 """
 
 
 class ToDoListException(Exception):
-    """Base exception for all ToDo List application errors."""
+    """Base exception for all ToDo List errors."""
 
-    pass
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message)
 
 
 class ValidationError(ToDoListException):
-    """Raised when validation of input data fails."""
-
+    """Raised when data validation fails."""
     pass
 
+
+# ========================================
+# Resource Not Found Exceptions
+# ========================================
 
 class ResourceNotFoundError(ToDoListException):
-    """Raised when a requested resource (project/task) is not found."""
+    """Base exception for resource not found errors."""
 
-    def __init__(self, resource_type: str, identifier: str) -> None:
-        """
-        Initialize ResourceNotFoundError.
-
-        Args:
-            resource_type: Type of resource (e.g., "Project", "Task")
-            identifier: Identifier of the resource (e.g., ID, title)
-        """
+    def __init__(self, resource_type: str, resource_id: str):
         self.resource_type = resource_type
-        self.identifier = identifier
-        super().__init__(
-            f"{resource_type} with identifier '{identifier}' not found"
-        )
+        self.resource_id = resource_id
+        message = f"{resource_type} with ID '{resource_id}' not found"
+        super().__init__(message)
 
 
-class LimitExceededError(ToDoListException):
-    """Raised when attempting to exceed maximum allowed items."""
+class ProjectNotFoundError(ResourceNotFoundError):
+    """Raised when a project is not found."""
 
-    def __init__(self, resource_type: str, limit: int) -> None:
-        """
-        Initialize LimitExceededError.
+    def __init__(self, project_id: str):
+        super().__init__("Project", project_id)
 
-        Args:
-            resource_type: Type of resource (e.g., "Project", "Task")
-            limit: Maximum allowed count
-        """
-        self.resource_type = resource_type
-        self.limit = limit
-        super().__init__(
-            f"Cannot create more {resource_type}s. "
-            f"Maximum limit of {limit} reached"
-        )
 
+class TaskNotFoundError(ResourceNotFoundError):
+    """Raised when a task is not found."""
+
+    def __init__(self, task_id: str):
+        super().__init__("Task", task_id)
+
+
+# ========================================
+# Duplicate Exceptions
+# ========================================
+
+class DuplicateProjectTitleError(ToDoListException):
+    """Raised when attempting to create a project with a duplicate title."""
+
+    def __init__(self, title: str):
+        message = f"Project with title '{title}' already exists"
+        super().__init__(message)
+
+
+class DuplicateTaskTitleError(ToDoListException):
+    """Raised when attempting to create a task with a duplicate title in the same project."""
+
+    def __init__(self, title: str, project_id: int):
+        message = f"Task with title '{title}' already exists in project {project_id}"
+        super().__init__(message)
+
+
+# ========================================
+# Duplicate Exceptions
+# ========================================
 
 class DuplicateResourceError(ToDoListException):
-    """Raised when attempting to create a resource that already exists."""
+    """Base exception for duplicate resource errors."""
 
-    def __init__(self, resource_type: str, identifier: str) -> None:
-        """
-        Initialize DuplicateResourceError.
-
-        Args:
-            resource_type: Type of resource (e.g., "Project", "Task")
-            identifier: Identifier of the duplicate resource
-        """
+    def __init__(self, resource_type: str, identifier: str):
         self.resource_type = resource_type
         self.identifier = identifier
-        super().__init__(
-            f"{resource_type} with identifier '{identifier}' already exists"
-        )
+        message = f"{resource_type} with identifier '{identifier}' already exists"
+        super().__init__(message)
 
 
-class InvalidStatusError(ToDoListException):
-    """Raised when an invalid status value is provided."""
+class DuplicateProjectTitleError(DuplicateResourceError):
+    """Raised when attempting to create a project with a duplicate title."""
 
-    def __init__(self, provided_status: str, valid_statuses: list[str]) -> None:
-        """
-        Initialize InvalidStatusError.
+    def __init__(self, title: str):
+        super().__init__("Project", title)
 
-        Args:
-            provided_status: The invalid status value provided
-            valid_statuses: List of valid status values
-        """
-        self.provided_status = provided_status
-        self.valid_statuses = valid_statuses
-        super().__init__(
-            f"Invalid status '{provided_status}'. "
+
+class DuplicateTaskTitleError(DuplicateResourceError):
+    """Raised when attempting to create a task with a duplicate title in the same project."""
+
+    def __init__(self, title: str, project_id: int):
+        message = f"Task with title '{title}' already exists in project {project_id}"
+        # Override parent message
+        ToDoListException.__init__(self, message)
+        self.resource_type = "Task"
+        self.identifier = title
+
+
+# ========================================
+# Limit Exceeded Exceptions
+# ========================================
+
+class LimitExceededError(ToDoListException):
+    """Base exception for limit exceeded errors."""
+
+    def __init__(self, resource_type: str, limit: int):
+        self.resource_type = resource_type
+        self.limit = limit
+        message = f"Maximum {resource_type.lower()} limit of {limit} has been reached"
+        super().__init__(message)
+
+
+class MaxProjectsReachedError(LimitExceededError):
+    """Raised when maximum number of projects is reached."""
+
+    def __init__(self, limit: int):
+        super().__init__("Project", limit)
+
+
+class MaxTasksReachedError(LimitExceededError):
+    """Raised when maximum number of tasks is reached."""
+
+    def __init__(self, limit: int):
+        super().__init__("Task", limit)
+
+
+# ========================================
+# Status Exceptions
+# ========================================
+
+class InvalidTaskStatusError(ToDoListException):
+    """Raised when an invalid task status is provided."""
+
+    def __init__(self, status: str, valid_statuses: list[str]):
+        message = (
+            f"Invalid status '{status}'. "
             f"Valid statuses are: {', '.join(valid_statuses)}"
         )
-"""
-Custom exceptions for the todolist application.
-"""
-
-
-class TodoListException(Exception):
-    """Base exception for todolist application."""
-    pass
-
-
-class ValidationError(TodoListException):
-    """Raised when validation fails."""
-    pass
-
-
-class ProjectNotFoundError(TodoListException):
-    """Raised when a project is not found."""
-    pass
-
-
-class MaxProjectsReachedError(TodoListException):
-    """Raised when maximum number of projects is reached."""
-    pass
-
-
-class TaskNotFoundError(TodoListException):
-    """Raised when a task is not found."""
-    pass
-
-
-class MaxTasksReachedError(TodoListException):
-    """Raised when maximum number of tasks is reached."""
-    pass
+        super().__init__(message)

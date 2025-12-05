@@ -1,23 +1,40 @@
 """
-Dependency injection for FastAPI routes.
+FastAPI Dependency Injection.
+
+This module provides dependency injection functions for:
+- Database session management
+- Service layer instantiation
+- Request context handling
 """
-from typing import Generator
+
+from typing import Generator, Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
+# Import از db package
 from todolist.db.database import SessionLocal
-from todolist.services.project_service import ProjectService
-from todolist.services.task_service import TaskService
-from todolist.repositories.project_repository import ProjectRepository
-from todolist.repositories.task_repository import TaskRepository
+from todolist.db.session import get_db_context
 
+# Import services
+from todolist.services.db_project_service import DBProjectService
+from todolist.services.db_task_service import DBTaskService
+
+
+# ============================================================================
+# Database Session Dependencies
+# ============================================================================
 
 def get_db() -> Generator[Session, None, None]:
     """
-    Get database session.
+    Provide database session as a dependency.
 
     Yields:
-        Session: SQLAlchemy session
+        Session: SQLAlchemy database session
+
+    Note:
+        - Session is automatically closed after request
+        - Transactions are committed on success
+        - Rollback happens on exception
     """
     db = SessionLocal()
     try:
@@ -26,29 +43,49 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_project_service(db: Session = Depends(get_db)):
+# ============================================================================
+# Service Dependencies
+# ============================================================================
+
+def get_project_service(
+    db: Session = Depends(get_db)
+) -> DBProjectService:
     """
-    Get project service instance.
+    Provide project service instance.
 
     Args:
-        db: Database session
+        db: Database session (injected automatically)
 
     Returns:
-        ProjectService: Project service instance
+        DBProjectService: Initialized project service
     """
-    project_repository = ProjectRepository(db)
-    return ProjectService(project_repository)
+    return DBProjectService(db)
 
 
-def get_task_service(db: Session = Depends(get_db)):
+def get_task_service(
+    db: Session = Depends(get_db)
+) -> DBTaskService:
     """
-    Get task service instance.
+    Provide task service instance.
 
     Args:
-        db: Database session
+        db: Database session (injected automatically)
 
     Returns:
-        TaskService: Task service instance
+        DBTaskService: Initialized task service
     """
-    task_repository = TaskRepository(db)
-    return TaskService(task_repository)
+    return DBTaskService(db)
+
+
+# ============================================================================
+# Type Aliases for Clean Annotations
+# ============================================================================
+
+DatabaseSession = Annotated[Session, Depends(get_db)]
+"""Type alias for database session dependency."""
+
+ProjectService = Annotated[DBProjectService, Depends(get_project_service)]
+"""Type alias for project service dependency."""
+
+TaskService = Annotated[DBTaskService, Depends(get_task_service)]
+"""Type alias for task service dependency."""

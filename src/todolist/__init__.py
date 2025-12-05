@@ -1,12 +1,8 @@
 """
-ToDo List Application - Phase 1 (In-Memory).
+FastAPI Application Package - Phase 3.
 
-A CLI-based task management application built with Python OOP principles.
+This package contains the RESTful API implementation
+that replaces the CLI interface.
 """
 
-__version__ = "0.1.0"
-__author__ = "Your Name"
-
-from .main import main
-
-__all__ = ["main"]
+__version__ = "3.0.0"
