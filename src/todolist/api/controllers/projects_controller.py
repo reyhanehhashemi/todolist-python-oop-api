@@ -1,31 +1,51 @@
+"""
+Projects Controller.
+
+Handles all HTTP endpoints related to project management.
+"""
+
 from fastapi import APIRouter, HTTPException, Depends, status
-from todolist.api.schemas import (
-    ProjectCreate,
-    ProjectUpdate,
-    ProjectResponse,
-    ProjectDetailResponse,
-    TaskStatistics,
-    TaskResponse,
-    ErrorResponse
-)
+from typing import List
+
 from todolist.services.db_project_service import DBProjectService
 from todolist.services.db_task_service import DBTaskService
 from todolist.api.dependencies import get_project_service, get_task_service
 
-router = APIRouter(prefix="/projects", tags=["projects"])
+# Import schemas from new structure
+from ..controller_schemas.requests.project_request import (
+    ProjectCreateRequest,
+    ProjectUpdateRequest
+)
+from ..controller_schemas.responses.project_response import (
+    ProjectResponse,
+    ProjectDetailResponse
+)
+from ..controller_schemas.responses.task_response import TaskResponse
+from ..controller_schemas.common import ErrorResponse
+
+router = APIRouter()
 
 
-@router.post("/", response_model=ProjectResponse, status_code=201)
-def create_project(
-        project: ProjectCreate,
-        service: DBProjectService = Depends(get_project_service)
+@router.post(
+    "",
+    response_model=ProjectResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a new project",
+    responses={
+        400: {"model": ErrorResponse, "description": "Duplicate project title"},
+        500: {"model": ErrorResponse, "description": "Internal server error"}
+    }
+)
+async def create_project(
+    project: ProjectCreateRequest,
+    service: DBProjectService = Depends(get_project_service)
 ):
     """Create new project (title must be unique)"""
     try:
         existing_projects = service.get_all_projects()
         if any(p.title.lower() == project.title.lower() for p in existing_projects):
             raise HTTPException(
-                status_code=400,
+                status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Project with title '{project.title}' already exists"
             )
 
@@ -36,12 +56,19 @@ def create_project(
         raise
     except Exception as e:
         print(f"Error creating project: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create project: {str(e)}"
+        )
 
 
-@router.get("/", response_model=list[ProjectResponse])
-def get_all_projects(
-        service: DBProjectService = Depends(get_project_service)
+@router.get(
+    "",
+    response_model=List[ProjectResponse],
+    summary="Get all projects"
+)
+async def get_all_projects(
+    service: DBProjectService = Depends(get_project_service)
 ):
     """Get all projects"""
     return service.get_all_projects()
@@ -57,9 +84,9 @@ def get_all_projects(
     }
 )
 async def get_project_details(
-        project_id: int,
-        project_service: DBProjectService = Depends(get_project_service),
-        task_service: DBTaskService = Depends(get_task_service)
+    project_id: int,
+    project_service: DBProjectService = Depends(get_project_service),
+    task_service: DBTaskService = Depends(get_task_service)
 ):
     """Get project with all tasks and statistics (total, todo, doing, done)"""
     try:
@@ -80,7 +107,6 @@ async def get_project_details(
                 status=task.status.value if hasattr(task.status, 'value') else task.status,
                 deadline=task.deadline,
                 project_id=task.project_id,
-                created_at=task.created_at,
                 closed_at=getattr(task, 'closed_at', None)
             ))
 
@@ -88,6 +114,8 @@ async def get_project_details(
         todo_count = sum(1 for t in tasks_list if t.status == 'TODO')
         doing_count = sum(1 for t in tasks_list if t.status == 'DOING')
         done_count = sum(1 for t in tasks_list if t.status == 'DONE')
+
+        from ..controller_schemas.responses.project_response import TaskStatistics
 
         return ProjectDetailResponse(
             id=project.id,
@@ -118,11 +146,19 @@ async def get_project_details(
         )
 
 
-@router.put("/{project_id}", response_model=ProjectResponse)
-def update_project(
-        project_id: int,
-        project: ProjectUpdate,
-        service: DBProjectService = Depends(get_project_service)
+@router.put(
+    "/{project_id}",
+    response_model=ProjectResponse,
+    summary="Update project",
+    responses={
+        404: {"model": ErrorResponse, "description": "Project not found"},
+        400: {"model": ErrorResponse, "description": "Duplicate project title"}
+    }
+)
+async def update_project(
+    project_id: int,
+    project: ProjectUpdateRequest,
+    service: DBProjectService = Depends(get_project_service)
 ):
     """Update project (all fields optional)"""
     try:
@@ -135,30 +171,43 @@ def update_project(
             existing_projects = service.get_all_projects()
             if any(p.id != project_id and p.title.lower() == project.title.lower() for p in existing_projects):
                 raise HTTPException(
-                    status_code=400,
+                    status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Project with title '{project.title}' already exists"
                 )
 
         return service.update_project(project_id, new_title, new_description)
 
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except HTTPException:
         raise
     except Exception as e:
         print(f"Error updating project: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to update project: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update project: {str(e)}"
+        )
 
 
-@router.delete("/{project_id}", status_code=204)
-def delete_project(
-        project_id: int,
-        service: DBProjectService = Depends(get_project_service)
+@router.delete(
+    "/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete project",
+    responses={
+        404: {"model": ErrorResponse, "description": "Project not found"}
+    }
+)
+async def delete_project(
+    project_id: int,
+    service: DBProjectService = Depends(get_project_service)
 ):
     """Delete project"""
     try:
         service.delete_project(project_id)
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete project: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete project: {str(e)}"
+        )

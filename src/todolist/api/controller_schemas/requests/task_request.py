@@ -1,8 +1,10 @@
 """
-Pydantic schemas for Task API endpoints.
+Task Request Schemas.
+
+Pydantic models for task-related API requests.
 """
 
-from pydantic import BaseModel, Field, field_validator, field_serializer, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 from datetime import datetime
 from typing import Optional, Any
 from enum import Enum
@@ -16,7 +18,7 @@ class TaskStatusEnum(str, Enum):
     DONE = "DONE"
 
 
-class TaskCreate(BaseModel):
+class TaskCreateRequest(BaseModel):
     """Schema for creating a new task."""
     title: str = Field(
         ...,
@@ -78,13 +80,12 @@ class TaskCreate(BaseModel):
 
     @field_validator('deadline', mode='before')
     @classmethod
-    def validate_deadline_tehran(cls, v: Any) -> Optional[datetime]:
-        """
-        Validate deadline is in future (Tehran time).
-        """
+    def parse_and_validate_deadline(cls, v: Any) -> Optional[datetime]:
+        """Parse and validate deadline is in future (Tehran time)."""
         if v is None or v == "":
             return None
 
+        # Parse string to datetime
         if isinstance(v, str):
             try:
                 v = datetime.strptime(v, '%Y-%m-%d %H:%M')
@@ -94,20 +95,43 @@ class TaskCreate(BaseModel):
                 except ValueError:
                     raise ValueError("Invalid datetime format. Use: YYYY-MM-DD HH:MM")
 
+        # ✅ کد قدیمی: تبدیل به Tehran naive (بدون timezone)
         tehran_tz = pytz.timezone('Asia/Tehran')
+
+        # اگر ورودی naive است، فرض می‌کنیم Tehran است
+        if v.tzinfo is None:
+            deadline_naive = v
+        else:
+            # اگر aware است، به Tehran تبدیل و naive کن
+            deadline_naive = v.astimezone(tehran_tz).replace(tzinfo=None)
+
+        # ✅ مقایسه با زمان فعلی Tehran (naive)
         now_tehran = datetime.now(tehran_tz).replace(tzinfo=None)
 
-        if v <= now_tehran:
+        if deadline_naive <= now_tehran:
             raise ValueError(
                 f"Task deadline must be in the future. "
                 f"Current time (Tehran): {now_tehran.strftime('%Y-%m-%d %H:%M')}, "
-                f"Your deadline: {v.strftime('%Y-%m-%d %H:%M')}"
+                f"Your deadline: {deadline_naive.strftime('%Y-%m-%d %H:%M')}"
             )
 
-        return v
+        # ✅ برگردون naive برای ذخیره در DB
+        return deadline_naive
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Implement user authentication",
+                "description": "Add JWT-based authentication to the API",
+                "project_id": 1,
+                "status": "TODO",
+                "deadline": "2025-12-15 23:59"
+            }
+        }
+    )
 
 
-class TaskUpdate(BaseModel):
+class TaskUpdateRequest(BaseModel):
     """Schema for updating an existing task."""
     title: Optional[str] = Field(
         default=None,
@@ -131,33 +155,45 @@ class TaskUpdate(BaseModel):
     @field_validator('title')
     @classmethod
     def validate_title_word_count(cls, v: Optional[str]) -> Optional[str]:
+        """Validate title if provided."""
         if v is None:
             return v
+
         if not v.strip():
             raise ValueError('Title cannot be empty if provided')
+
         words = v.strip().split()
         if len(words) > 30:
-            raise ValueError(f'Title cannot exceed 30 words. Got {len(words)} words')
+            raise ValueError(
+                f'Title cannot exceed 30 words. Got {len(words)} words'
+            )
         return v.strip()
 
     @field_validator('description')
     @classmethod
     def validate_description_word_count(cls, v: Optional[str]) -> Optional[str]:
+        """Validate description if provided."""
         if v is None:
             return v
+
         if not v:
             return ""
+
         words = v.strip().split()
         if len(words) > 150:
-            raise ValueError(f'Description cannot exceed 150 words. Got {len(words)} words')
+            raise ValueError(
+                f'Description cannot exceed 150 words. Got {len(words)} words'
+            )
         return v.strip()
 
     @field_validator('deadline', mode='before')
     @classmethod
-    def validate_deadline_tehran(cls, v: Any) -> Optional[datetime]:
+    def parse_and_validate_deadline(cls, v: Any) -> Optional[datetime]:
+        """Parse and validate deadline is in future if provided."""
         if v is None or v == "":
             return None
 
+        # Parse string to datetime
         if isinstance(v, str):
             try:
                 v = datetime.strptime(v, '%Y-%m-%d %H:%M')
@@ -167,59 +203,49 @@ class TaskUpdate(BaseModel):
                 except ValueError:
                     raise ValueError("Invalid datetime format. Use: YYYY-MM-DD HH:MM")
 
+        # ✅ کد قدیمی: تبدیل به Tehran naive
         tehran_tz = pytz.timezone('Asia/Tehran')
+
+        if v.tzinfo is None:
+            deadline_naive = v
+        else:
+            deadline_naive = v.astimezone(tehran_tz).replace(tzinfo=None)
+
+        # ✅ مقایسه با زمان فعلی Tehran (naive)
         now_tehran = datetime.now(tehran_tz).replace(tzinfo=None)
 
-        if v <= now_tehran:
+        if deadline_naive <= now_tehran:
             raise ValueError(
                 f"Task deadline must be in the future. "
                 f"Current time (Tehran): {now_tehran.strftime('%Y-%m-%d %H:%M')}, "
-                f"Your deadline: {v.strftime('%Y-%m-%d %H:%M')}"
+                f"Your deadline: {deadline_naive.strftime('%Y-%m-%d %H:%M')}"
             )
 
-        return v
+        return deadline_naive
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "title": "Updated task title",
+                "description": "Updated description with more details",
+                "deadline": "2025-12-25 23:59"
+            }
+        }
+    )
 
 
-class TaskStatusUpdate(BaseModel):
-    """Schema for updating task status only."""
+class TaskStatusUpdateRequest(BaseModel):
+    """Schema for quick status update."""
     status: TaskStatusEnum = Field(
         ...,
         description="New task status",
         examples=["DOING"]
     )
 
-
-class TaskResponse(BaseModel):
-    """Schema for task response."""
-    id: int
-    title: str
-    description: str
-    status: str
-    deadline: Optional[datetime]
-    project_id: int
-    closed_at: Optional[datetime] = None  # ✅ created_at حذف شد
-
-    @field_serializer('deadline', 'closed_at')  # ✅ created_at حذف شد
-    def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
-        """
-        فقط فرمت می‌کنیم، هیچ تبدیلی نمی‌کنیم.
-        DB از اول Tehran ذخیره می‌کنه.
-        """
-        if dt is None:
-            return None
-        return dt.strftime('%Y-%m-%d %H:%M')
-
     model_config = ConfigDict(
-        from_attributes=True,
         json_schema_extra={
             "example": {
-                "id": 1,
-                "title": "Complete documentation",
-                "description": "Write comprehensive API documentation",
-                "status": "TODO",
-                "deadline": "2025-12-15 23:59",
-                "project_id": 1,
-                "closed_at": None
+                "status": "DOING"
             }
         }
     )

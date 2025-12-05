@@ -19,6 +19,11 @@ class ValidationError(ToDoListException):
     pass
 
 
+class InvalidOperationError(ToDoListException):
+    """Raised when an invalid operation is attempted."""
+    pass
+
+
 # ========================================
 # Resource Not Found Exceptions
 # ========================================
@@ -48,27 +53,7 @@ class TaskNotFoundError(ResourceNotFoundError):
 
 
 # ========================================
-# Duplicate Exceptions
-# ========================================
-
-class DuplicateProjectTitleError(ToDoListException):
-    """Raised when attempting to create a project with a duplicate title."""
-
-    def __init__(self, title: str):
-        message = f"Project with title '{title}' already exists"
-        super().__init__(message)
-
-
-class DuplicateTaskTitleError(ToDoListException):
-    """Raised when attempting to create a task with a duplicate title in the same project."""
-
-    def __init__(self, title: str, project_id: int):
-        message = f"Task with title '{title}' already exists in project {project_id}"
-        super().__init__(message)
-
-
-# ========================================
-# Duplicate Exceptions
+# Duplicate Resource Exceptions
 # ========================================
 
 class DuplicateResourceError(ToDoListException):

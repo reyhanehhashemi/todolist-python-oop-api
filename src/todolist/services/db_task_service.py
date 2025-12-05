@@ -262,25 +262,16 @@ class DBTaskService:
         self._session.rollback()
 
     def auto_close_overdue_tasks(self) -> int:
-        """
-        Automatically close overdue tasks.
+        """Automatically close overdue tasks (Tehran time)."""
+        from ..utils import get_tehran_now  # ✅ اضافه
 
-        Tasks are closed if:
-        - deadline < now (in local timezone)
-        - status != DONE
-
-        Returns:
-            Number of tasks closed
-        """
-        from datetime import datetime
-
-        # ✅ استفاده از تایم محلی (نه UTC)
-        now = datetime.now()
+        # ✅ وقت تهران (naive)
+        now = get_tehran_now().replace(microsecond=0)
 
         all_tasks = self._task_repo.get_all()
 
         print(f"\n=== Auto-Close Debug Info ===")
-        print(f"Current time (Local): {now}")
+        print(f"Current time (Tehran, naive): {now}")
         print(f"Total tasks in DB: {len(all_tasks)}")
 
         closed_count = 0
@@ -290,7 +281,7 @@ class DBTaskService:
             if task.deadline is None:
                 continue
 
-            # Get status as string (مقاوم در برابر Enum/String)
+            # Get status as string
             if isinstance(task.status, str):
                 status_value = task.status
             elif hasattr(task.status, 'value'):
@@ -302,19 +293,16 @@ class DBTaskService:
             if status_value == TaskStatus.DONE.value:
                 continue
 
-            # ✅ تبدیل deadline به naive اگر aware است
-            deadline = task.deadline
-            if deadline.tzinfo is not None:
-                # تبدیل به تایم محلی
-                deadline = deadline.replace(tzinfo=None)
+            # ✅ deadline باید naive باشه
+            deadline = task.deadline.replace(microsecond=0)
 
             print(f"Task {task.id}: deadline={deadline}, now={now}, overdue={deadline < now}")
 
             # Check if overdue
             if deadline < now:
                 # Update to DONE
-                task.status = TaskStatus.DONE  # ✅ نه .value
-                task.closed_at = now  # ✅ نه now()
+                task.status = TaskStatus.DONE
+                task.closed_at = now  # ✅ Tehran naive
 
                 # Save changes
                 self._task_repo.update(task)
@@ -326,3 +314,4 @@ class DBTaskService:
 
         print(f"Total closed: {closed_count}")
         return closed_count
+

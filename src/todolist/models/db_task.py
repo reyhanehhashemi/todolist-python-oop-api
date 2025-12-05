@@ -13,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from . import Base
 from ..utils.exceptions import ValidationError
+from ..utils import get_tehran_now  # ✅ اضافه شد
 
 if TYPE_CHECKING:
     from .db_project import DBProject
@@ -35,32 +36,23 @@ class DBTask(Base):
     """
     SQLAlchemy model for Task entity.
 
-    Attributes:
-        id: Primary key (manual assignment for ID reuse)
-        title: Task title (max 30 words, indexed)
-        description: Task description (max 150 words)
-        status: Current status (TODO, DOING, DONE)
-        project_id: Foreign key to projects table
-        deadline: Optional deadline for the task
-        created_at: Timestamp of creation (server default)
-        updated_at: Timestamp of last update (auto-updated)
-        project: Relationship to parent project
+    All datetime fields are stored as naive (timezone=False) in Tehran time.
     """
 
     __tablename__ = "tasks"
 
-    # Primary Key - ✅ autoincrement=False برای بازیافت ID
+    # Primary Key
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
 
     # Fields
     title: Mapped[str] = mapped_column(
-        String(500),  # ~30 words * 15 chars avg
+        String(500),
         nullable=False,
         index=True
     )
 
     description: Mapped[str] = mapped_column(
-        Text,  # ~150 words
+        Text,
         nullable=False,
         default=""
     )
@@ -80,25 +72,26 @@ class DBTask(Base):
         index=True
     )
 
-    # Optional deadline
+    # ✅ تغییر به timezone=False (naive)
     deadline: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
-        nullable=True
-    )
-    closed_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True),
+        DateTime(timezone=False),  # ✅ naive
         nullable=True
     )
 
-    # Timestamps
+    closed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=False),  # ✅ naive
+        nullable=True
+    )
+
+    # Timestamps (naive, Tehran time)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        DateTime(timezone=False),  # ✅ naive
         nullable=False,
         server_default=func.now()
     )
 
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        DateTime(timezone=False),  # ✅ naive
         nullable=False,
         server_default=func.now(),
         onupdate=func.now()
@@ -119,20 +112,7 @@ class DBTask(Base):
             status: str = TaskStatus.TODO.value,
             deadline: Optional[datetime] = None
     ) -> None:
-        """
-        Initialize task with validation.
-
-        Args:
-            id: Manually assigned task ID
-            title: Task title (max 30 words)
-            project_id: ID of the parent project
-            description: Task description (max 150 words, optional)
-            status: Task status (default: TODO)
-            deadline: Optional deadline for the task
-
-        Raises:
-            ValidationError: If validation fails
-        """
+        """Initialize task with validation."""
         super().__init__()
         self.id = id
         self.title = title
@@ -176,19 +156,22 @@ class DBTask(Base):
 
     @validates("deadline")
     def validate_deadline_field(self, key: str, value: Optional[datetime]) -> Optional[datetime]:
-        """Validate deadline field."""
+        """Validate deadline field (must be in future, Tehran time)."""
         if value is None:
             return value
 
         if not isinstance(value, datetime):
             raise ValidationError("Task deadline must be a datetime object")
 
-        # Remove microseconds for fair comparison
-        now = datetime.now().replace(microsecond=0)
+        # ✅ مقایسه با وقت تهران (naive)
+        now = get_tehran_now().replace(microsecond=0)
         deadline_normalized = value.replace(microsecond=0)
 
         if deadline_normalized < now:
-            raise ValidationError("Task deadline cannot be in the past")
+            raise ValidationError(
+                f"Task deadline cannot be in the past. "
+                f"Current time (Tehran): {now.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
 
         return value
 
@@ -199,18 +182,7 @@ class DBTask(Base):
             max_words: int,
             allow_empty: bool = False
     ) -> None:
-        """
-        Validate string and its word count.
-
-        Args:
-            value: String value to validate
-            field_name: Name of the field (for error messages)
-            max_words: Maximum number of words allowed
-            allow_empty: Whether empty string is allowed
-
-        Raises:
-            ValidationError: If validation fails
-        """
+        """Validate string and its word count."""
         if not isinstance(value, str):
             raise ValidationError(f"{field_name} must be a string")
 
@@ -225,17 +197,9 @@ class DBTask(Base):
                 )
 
     def update_status(self, new_status: str) -> None:
-        """
-        Update task status.
-
-        Args:
-            new_status: New status value
-
-        Raises:
-            ValidationError: If status is invalid
-        """
-        self.status = new_status  # Triggers @validates
-        self.updated_at = datetime.now()
+        """Update task status."""
+        self.status = new_status
+        self.updated_at = get_tehran_now()  # ✅ Tehran naive
 
     def update_details(
             self,
@@ -243,27 +207,17 @@ class DBTask(Base):
             description: Optional[str] = None,
             deadline: Optional[datetime] = None
     ) -> None:
-        """
-        Update task details.
-
-        Args:
-            title: New title (optional, max 30 words)
-            description: New description (optional, max 150 words)
-            deadline: New deadline (optional)
-
-        Raises:
-            ValidationError: If validation fails
-        """
+        """Update task details."""
         if title is not None:
-            self.title = title  # Triggers @validates
+            self.title = title
 
         if description is not None:
-            self.description = description  # Triggers @validates
+            self.description = description
 
         if deadline is not None:
-            self.deadline = deadline  # Triggers @validates
+            self.deadline = deadline
 
-        self.updated_at = datetime.now()
+        self.updated_at = get_tehran_now()  # ✅ Tehran naive
 
     def __str__(self) -> str:
         """Return string representation of task."""

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..models.db_project import DBProject
 from ..utils.exceptions import ResourceNotFoundError, LimitExceededError
+from ..utils import get_tehran_now  # ✅ اضافه شد
 from ..config import settings
 
 
@@ -73,11 +74,12 @@ class DBProjectRepository:
         # Get next available ID
         next_id = self._get_next_id()
 
-        # Create new project with manual ID
+        # Create new project with manual ID and Tehran time
         project = DBProject(
             id=next_id,
             title=title,
-            description=description
+            description=description,
+
         )
 
         self._session.add(project)
