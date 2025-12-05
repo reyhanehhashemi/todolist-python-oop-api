@@ -5,62 +5,9 @@ Supports both in-memory (Phase 1) and database (Phase 2) modes.
 """
 
 import sys
-import warnings
 
 from .cli.commands import CLI
 from .config import settings
-
-
-def show_deprecation_warning() -> None:
-    """
-    Display deprecation warning for CLI mode.
-
-    This warning informs users that the CLI is deprecated and they should
-    migrate to the new FastAPI-based Web API.
-    """
-    warning_message = """
-╔════════════════════════════════════════════════════════════════════════════╗
-║                          ⚠️  DEPRECATION WARNING  ⚠️                         ║
-╠════════════════════════════════════════════════════════════════════════════╣
-║                                                                            ║
-║  The Command-Line Interface (CLI) for this application is DEPRECATED.     ║
-║                                                                            ║
-║  🔄 Current Status:                                                        ║
-║     • CLI still works and will continue to function                       ║
-║     • No new features will be added to CLI                                ║
-║     • All new functionality is only available via Web API                 ║
-║                                                                            ║
-║  ✨ New Way (Recommended):                                                 ║
-║     • Use the FastAPI-based Web API instead                               ║
-║     • Better performance and modern architecture                          ║
-║     • Full REST API with automatic documentation                          ║
-║                                                                            ║
-║  🚀 To use the Web API:                                                    ║
-║     poetry run python run_api.py                                          ║
-║     Then visit: http://localhost:8000/docs                                ║
-║                                                                            ║
-║  📖 Migration Guide:                                                       ║
-║     See MIGRATION.md for step-by-step migration instructions              ║
-║                                                                            ║
-║  ⏰ Timeline:                                                              ║
-║     • Phase 3 (Current): CLI deprecated, API available                    ║
-║     • Future Phase: CLI will be completely removed                        ║
-║                                                                            ║
-╚════════════════════════════════════════════════════════════════════════════╝
-    """
-    print(warning_message)
-
-    # Also issue a Python warning for programmatic detection
-    warnings.warn(
-        "CLI mode is deprecated. Please migrate to the FastAPI Web API. "
-        "See MIGRATION.md for details.",
-        DeprecationWarning,
-        stacklevel=2
-    )
-
-    # Give user time to read the warning
-    input("\n⏸️  Press Enter to continue with CLI (deprecated mode)... ")
-    print()
 
 
 def run_inmemory_mode() -> None:
@@ -69,9 +16,6 @@ def run_inmemory_mode() -> None:
     from .repositories.task_repository import TaskRepository
     from .services.project_service import ProjectService
     from .services.task_service import TaskService
-
-    # ⚠️ Show deprecation warning
-    show_deprecation_warning()
 
     print("=" * 50)
     print("ToDo List Application - Phase 1 (In-Memory)")
@@ -104,13 +48,11 @@ def run_inmemory_mode() -> None:
 
 def run_database_mode() -> None:
     """Run application with database storage (Phase 2)."""
+    # ✅ تغییر Import - حذف get_session و اضافه get_db_context
     from .models import init_db
     from .db.session import get_db_context
     from .services.db_project_service import DBProjectService
     from .services.db_task_service import DBTaskService
-
-    # ⚠️ Show deprecation warning
-    show_deprecation_warning()
 
     print("=" * 50)
     print("ToDo List Application - Phase 2 (Database)")
@@ -130,6 +72,7 @@ def run_database_mode() -> None:
         print(f"❌ Failed to initialize database: {e}")
         return
 
+    # ✅ استفاده از get_db_context به جای get_session
     try:
         with get_db_context() as session:
             # Initialize services
@@ -142,10 +85,13 @@ def run_database_mode() -> None:
 
     except KeyboardInterrupt:
         print("\n\n👋 Application terminated by user.")
+        # Rollback اتوماتیک توسط context manager انجام میشه
     except Exception as e:
         print(f"\n❌ Fatal error: {e}")
+        # Rollback اتوماتیک توسط context manager انجام میشه
         import traceback
         traceback.print_exc()
+    # Close اتوماتیک توسط context manager انجام میشه
     print("\n🔒 Database session closed.")
 
 
@@ -155,9 +101,7 @@ def show_usage() -> None:
     print("  poetry run python -m todolist.main              # In-Memory mode (default)")
     print("  poetry run python -m todolist.main --db         # Database mode")
     print("  poetry run python -m todolist.main --inmemory   # In-Memory mode (explicit)")
-    print("  poetry run python -m todolist.main --help       # Show this help")
-    print("\n⚠️  Note: CLI mode is DEPRECATED. Use Web API instead:")
-    print("  poetry run python run_api.py                    # Start FastAPI server\n")
+    print("  poetry run python -m todolist.main --help       # Show this help\n")
 
 
 def main() -> None:

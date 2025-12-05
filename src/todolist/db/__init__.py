@@ -1,17 +1,25 @@
 """
-Database package initialization.
+Database package.
+
+Contains database connection, session management, and utilities.
 """
 
-from todolist.db.session import (
+from .database import (
     engine,
     SessionLocal,
-    Base,
+    init_db,
+    drop_db,
+)
+from .session import (
     get_db,
+    get_db_context,
 )
 
 __all__ = [
-    "engine",
-    "SessionLocal",
-    "Base",
-    "get_db",
+    'engine',
+    'SessionLocal',
+    'get_db',
+    'get_db_context',
+    'init_db',
+    'drop_db',
 ]

@@ -51,7 +51,7 @@ class DBProject(Base):
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
+        DateTime(timezone= False),
         nullable=False,
         server_default=func.now()
     )

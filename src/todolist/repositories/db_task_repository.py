@@ -11,8 +11,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..models.db_task import DBTask, TaskStatus
 from ..utils.exceptions import ResourceNotFoundError, LimitExceededError
+from ..utils import get_tehran_now  # ✅ اضافه شد
 from ..config import settings
-
+from ..utils.timezone import get_tehran_now, convert_to_tehran_naive
 
 class DBTaskRepository:
     """
@@ -54,29 +55,14 @@ class DBTaskRepository:
         return next_id
 
     def add(
-        self,
-        title: str,
-        project_id: int,
-        description: str = "",
-        status: str = TaskStatus.TODO.value,
-        deadline: Optional[datetime] = None,
+            self,
+            title: str,
+            project_id: int,
+            description: str = "",
+            status: str = TaskStatus.TODO.value,
+            deadline: Optional[datetime] = None,
     ) -> DBTask:
-        """
-        Add a new task to the database.
-
-        Args:
-            title: Task title
-            project_id: ID of parent project
-            description: Task description (optional)
-            status: Task status (default: TODO)
-            deadline: Task deadline (optional)
-
-        Returns:
-            The created task
-
-        Raises:
-            LimitExceededError: If maximum task limit is reached
-        """
+        """Add a new task to the database."""
         # Check task limit
         if self.count() >= settings.max_number_of_task:
             raise LimitExceededError("Task", settings.max_number_of_task)
@@ -84,18 +70,22 @@ class DBTaskRepository:
         # Get next available ID
         next_id = self._get_next_id()
 
-        # Create new task with manual ID
+        # ✅ تبدیل deadline به Tehran naive اگر aware است
+        if deadline is not None:
+            deadline = convert_to_tehran_naive(deadline)
+
+        # Create new task
         task = DBTask(
             id=next_id,
             title=title,
             project_id=project_id,
             description=description,
             status=TaskStatus(status),
-            deadline=deadline
+            deadline=deadline,  # ✅ حالا naive است
         )
 
         self._session.add(task)
-        self._session.flush()  # Flush to get the ID assigned
+        self._session.flush()
         return task
 
     def get_by_id(self, task_id: int) -> DBTask:
@@ -158,6 +148,13 @@ class DBTaskRepository:
         existing = self._session.query(DBTask).filter(DBTask.id == task.id).first()
         if existing is None:
             raise ResourceNotFoundError("Task", str(task.id))
+
+        # ✅ اگر وضعیت به DONE تغییر کرد، closed_at رو ست کن
+        if task.status == TaskStatus.DONE and existing.closed_at is None:
+            task.closed_at = get_tehran_now()
+        # ✅ اگر از DONE به غیر DONE تغییر کرد، closed_at رو پاک کن
+        elif task.status != TaskStatus.DONE and existing.closed_at is not None:
+            task.closed_at = None
 
         self._session.merge(task)
         self._session.flush()

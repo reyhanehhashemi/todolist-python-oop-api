@@ -1,58 +1,73 @@
 """
-FastAPI application entry point.
+FastAPI Application Entry Point.
 """
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from todolist.api.routers import project_router, task_router
-from todolist.config.settings import settings
+from ..db import init_db
+from .routers import api_router
+
+# Import exception handlers
+from .exception_handlers import (
+    resource_not_found_handler,
+    duplicate_resource_handler,
+    invalid_operation_handler,
+    value_error_handler,
+)
+from ..utils.exceptions import (
+    ResourceNotFoundError,
+    DuplicateResourceError,
+    InvalidOperationError,
+)
+
+# Initialize FastAPI app
+app = FastAPI(
+    title="TodoList API",
+    description="A RESTful API for managing projects and tasks",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-def create_app() -> FastAPI:
-    """
-    Create and configure FastAPI application.
+# ============================================================================
+# Register Custom Exception Handlers
+# ============================================================================
 
-    Returns:
-        Configured FastAPI app
-    """
-    app = FastAPI(
-        title="ToDoList API",
-        description="RESTful API for ToDoList application",
-        version="1.0.0",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json",
-    )
-
-    # CORS middleware
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],  # In production, specify allowed origins
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # Include routers
-    app.include_router(project_router.router, prefix="/api/v1")
-    app.include_router(task_router.router, prefix="/api/v1")
-
-    @app.get("/")
-    def root():
-        """Root endpoint."""
-        return {
-            "message": "ToDoList API",
-            "version": "1.0.0",
-            "docs": "/api/docs",
-        }
-
-    @app.get("/health")
-    def health_check():
-        """Health check endpoint."""
-        return {"status": "healthy"}
-
-    return app
+app.add_exception_handler(ResourceNotFoundError, resource_not_found_handler)
+app.add_exception_handler(DuplicateResourceError, duplicate_resource_handler)
+app.add_exception_handler(InvalidOperationError, invalid_operation_handler)
+app.add_exception_handler(ValueError, value_error_handler)
 
 
-app = create_app()
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup."""
+    init_db()
+    print("✅ Database initialized successfully")
+
+
+# Health check endpoint
+@app.get("/", tags=["Health"])
+async def root():
+    """Root endpoint - API health check."""
+    return {
+        "status": "ok",
+        "message": "TodoList API is running",
+        "version": "1.0.0"
+    }
+
+
+# Include API routers
+app.include_router(api_router)
